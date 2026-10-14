@@ -6,6 +6,7 @@ import mysql.connector
 import pandas as pd
 import streamlit as st
 from streamlit_autorefresh import st_autorefresh
+import gzip
 # ==================================================
 # CONFIGURATION
 # ==================================================
@@ -18,7 +19,7 @@ BASE_DIR = os.path.dirname(
     os.path.dirname(os.path.abspath(__file__))
 )
 MODEL_PATH = os.path.join(
-    BASE_DIR, "models", "random_forest_model.joblib"
+    BASE_DIR, "random_forest_model_new.joblib.gz"
 )
 DB_CONFIG = {
     "host": "127.0.0.1",
@@ -169,7 +170,8 @@ hr {
 # ==================================================
 @st.cache_resource
 def load_model(model_path, modified_time):
-    return joblib.load(model_path)
+    with gzip.open(model_path, "rb") as f:
+        return joblib.load(f)
 def get_connection():
     return mysql.connector.connect(**DB_CONFIG)
 def fetch_dataset():
