@@ -22,12 +22,13 @@ MODEL_PATH = os.path.join(
     BASE_DIR, "random_forest_model_new.joblib.gz"
 )
 DB_CONFIG = {
-    "host": "127.0.0.1",
-    "port": 3306,
-    "user": "root",
-    "password": "",
-    "database": "forex_db",
-    "connection_timeout": 5,
+    "host": st.secrets["AIVEN_HOST"],
+    "port": int(st.secrets["AIVEN_PORT"]),
+    "user": st.secrets["AIVEN_USER"],
+    "password": st.secrets["AIVEN_PASSWORD"],
+    "database": st.secrets.get("AIVEN_DATABASE", "defaultdb"),
+    "connection_timeout": 10,
+    "ssl_disabled": False,
 }
 FEATURE_COLUMNS = [
     "open", "high", "low", "close",
