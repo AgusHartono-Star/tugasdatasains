@@ -21,15 +21,15 @@ BASE_DIR = os.path.dirname(
 MODEL_PATH = os.path.join(
     BASE_DIR, "random_forest_model_new.joblib.gz"
 )
-DB_CONFIG = {
-    "host": st.secrets["AIVEN_HOST"],
-    "port": int(st.secrets["AIVEN_PORT"]),
-    "user": st.secrets["AIVEN_USER"],
-    "password": st.secrets["AIVEN_PASSWORD"],
-    "database": st.secrets.get("AIVEN_DATABASE", "defaultdb"),
-    "connection_timeout": 10,
-    "ssl_disabled": False,
-}
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+FOREX_CSV_PATH = os.path.join(
+    BASE_DIR, "..", "forex_prices.csv"
+)
+
+TRAINING_CSV_PATH = os.path.join(
+    BASE_DIR, "..", "training_dataset.csv"
+)
 FEATURE_COLUMNS = [
     "open", "high", "low", "close",
     "price_change", "return_1d",
