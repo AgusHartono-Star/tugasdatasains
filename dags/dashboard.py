@@ -1,12 +1,13 @@
 import os
+import gzip
 import textwrap
-from datetime import timedelta
+from pathlib import Path
+
 import joblib
-import mysql.connector
 import pandas as pd
 import streamlit as st
 from streamlit_autorefresh import st_autorefresh
-import gzip
+
 # ==================================================
 # CONFIGURATION
 # ==================================================
@@ -15,21 +16,13 @@ st.set_page_config(
     page_icon="📈",
     layout="wide",
 )
-BASE_DIR = os.path.dirname(
-    os.path.dirname(os.path.abspath(__file__))
-)
-MODEL_PATH = os.path.join(
-    BASE_DIR, "random_forest_model_new.joblib.gz"
-)
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-FOREX_CSV_PATH = os.path.join(
-    BASE_DIR, "..", "forex_prices.csv"
-)
+# dashboard.py berada di folder dags; file CSV dan model ada di root repo.
+ROOT_DIR = Path(__file__).resolve().parent.parent
+MODEL_PATH = ROOT_DIR / "random_forest_model_new.joblib.gz"
+FOREX_CSV_PATH = ROOT_DIR / "forex_prices.csv"
+TRAINING_CSV_PATH = ROOT_DIR / "training_dataset.csv"
 
-TRAINING_CSV_PATH = os.path.join(
-    BASE_DIR, "..", "training_dataset.csv"
-)
 FEATURE_COLUMNS = [
     "open", "high", "low", "close",
     "price_change", "return_1d",
@@ -170,6 +163,13 @@ hr {
 # DATABASE AND MODEL
 # ==================================================
 
+@st.cache_resource
+def load_model(model_path, modified_time):
+    """Muat model Random Forest terkompresi (.joblib.gz)."""
+    with gzip.open(model_path, "rb") as model_file:
+        return joblib.load(model_file)
+
+
 @st.cache_data
 def fetch_dataset():
     df = pd.read_csv(TRAINING_CSV_PATH)
@@ -273,30 +273,28 @@ with st.sidebar:
     st.markdown("**Model**")
     st.markdown("Random Forest Regressor")
     st.divider()
-    st.markdown("**Database**")
-    st.code(
-        "localhost:3306\nforex_db",
-        language=None,
-    )
+    st.markdown("**Sumber Data**")
+    st.code("GitHub CSV", language=None)
     if st.button(
         "Refresh sekarang",
         use_container_width=True,
     ):
         st.rerun()
     st.caption(
-        "Data diproses melalui pipeline Apache Airflow."
+        "Dashboard membaca salinan CSV yang tersimpan di GitHub. "
+        "Data berubah hanya jika file CSV diperbarui."
     )
 # ==================================================
 # LOAD DATA
 # ==================================================
 try:
-    if not os.path.exists(MODEL_PATH):
+    if not MODEL_PATH.exists():
         st.error("File model tidak ditemukan.")
-        st.code(MODEL_PATH)
+        st.code(str(MODEL_PATH))
         st.stop()
     model = load_model(
-        MODEL_PATH,
-        os.path.getmtime(MODEL_PATH),
+        str(MODEL_PATH),
+        MODEL_PATH.stat().st_mtime,
     )
     data = fetch_dataset()
     raw_rows, training_rows, latest_raw_datetime = (
@@ -306,8 +304,9 @@ except Exception as error:
     st.error("Dashboard gagal mengambil data.")
     st.code(str(error))
     st.info(
-        "Pastikan MySQL Laragon aktif dan tabel "
-        "forex_db tersedia."
+        "Pastikan forex_prices.csv, training_dataset.csv, "
+        "dan random_forest_model_new.joblib.gz tersedia "
+        "di root repository GitHub."
     )
     st.stop()
 # ==================================================
@@ -341,8 +340,8 @@ with cols[2]:
     )
 if data.empty:
     st.warning(
-        "Tabel training_dataset kosong pada database "
-        "yang dibaca dashboard. Periksa task Airflow."
+        "training_dataset.csv tidak berisi data yang dapat digunakan. "
+        "Periksa file CSV di repository GitHub."
     )
     st.stop()
 # ==================================================
@@ -642,7 +641,6 @@ st.markdown("""
 <div class="small-muted" style="margin-top:20px">
     Prediksi merupakan estimasi model, bukan jaminan
     pergerakan pasar atau saran investasi. Data terbaru
-    bergantung pada proses ETL dan pembentukan dataset
-    yang dijalankan melalui Airflow.
+    bergantung pada data CSV yang terakhir diperbarui di GitHub.
 </div>
 """, unsafe_allow_html=True)
