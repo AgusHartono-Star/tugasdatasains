@@ -95,7 +95,7 @@ def retrain_model():
     y_test = y.iloc[split_index:]
 
     model = RandomForestRegressor(
-        n_estimators=200,
+        n_estimators=100,
         random_state=42,
         n_jobs=-1
     )
