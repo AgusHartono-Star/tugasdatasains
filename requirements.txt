@@ -4,3 +4,5 @@ pandas
 mysql-connector-python
 joblib
 scikit-learn
+streamlit
+streamlit-autorefresh
