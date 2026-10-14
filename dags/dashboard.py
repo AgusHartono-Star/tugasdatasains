@@ -169,58 +169,61 @@ hr {
 # ==================================================
 # DATABASE AND MODEL
 # ==================================================
-@st.cache_resource
-def load_model(model_path, modified_time):
-    with gzip.open(model_path, "rb") as f:
-        return joblib.load(f)
-def get_connection():
-    return mysql.connector.connect(**DB_CONFIG)
+
+@st.cache_data
 def fetch_dataset():
+    df = pd.read_csv(TRAINING_CSV_PATH)
+
     columns = ["datetime"] + FEATURE_COLUMNS + ["next_close"]
-    selected_columns = ", ".join(
-        f"`{column}`" for column in columns
-    )
-    query = f"""
-        SELECT {selected_columns}
-        FROM training_dataset
-        ORDER BY datetime DESC
-        LIMIT 9000
-    """
-    connection = get_connection()
-    try:
-        df = pd.read_sql(query, connection)
-    finally:
-        connection.close()
-    if df.empty:
-        return df
+    missing = [col for col in columns if col not in df.columns]
+
+    if missing:
+        raise ValueError(
+            f"Kolom berikut tidak ditemukan di training_dataset.csv: {missing}"
+        )
+
+    df = df[columns].copy()
     df["datetime"] = pd.to_datetime(
         df["datetime"], errors="coerce"
     )
     df = df.dropna(subset=["datetime"])
+
     return (
         df.sort_values("datetime")
+        .tail(9000)
         .reset_index(drop=True)
     )
+
+
+@st.cache_data
 def fetch_database_status():
-    connection = get_connection()
-    try:
-        cursor = connection.cursor()
-        cursor.execute(
-            "SELECT COUNT(*) FROM forex_prices"
-        )
-        raw_rows = cursor.fetchone()[0]
-        cursor.execute(
-            "SELECT COUNT(*) FROM training_dataset"
-        )
-        training_rows = cursor.fetchone()[0]
-        cursor.execute(
-            "SELECT MAX(datetime) FROM forex_prices"
-        )
-        latest_datetime = cursor.fetchone()[0]
-        cursor.close()
-        return raw_rows, training_rows, latest_datetime
-    finally:
-        connection.close()
+    prices = pd.read_csv(
+        FOREX_CSV_PATH,
+        usecols=["datetime"]
+    )
+    training = pd.read_csv(
+        TRAINING_CSV_PATH,
+        usecols=["datetime"]
+    )
+
+    prices["datetime"] = pd.to_datetime(
+        prices["datetime"], errors="coerce"
+    )
+    training["datetime"] = pd.to_datetime(
+        training["datetime"], errors="coerce"
+    )
+
+    prices = prices.dropna(subset=["datetime"])
+    training = training.dropna(subset=["datetime"])
+
+    latest_datetime = (
+        prices["datetime"].max()
+        if not prices.empty
+        else None
+    )
+
+    return len(prices), len(training), latest_datetime
+
 def format_price(value):
     if value is None or pd.isna(value):
         return "—"
